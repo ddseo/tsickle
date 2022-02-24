@@ -44,6 +44,9 @@ class DecoratorTest {
       aType: AType,
       defaultImport: DefaultImport,
       localTypeAlias: LocalTypeAlias,
+      // Note: this gets emitted as "ReexportedOtherClass" because TypeScript
+      // uses the first symbol in the local scope that aliases the final symbol,
+      // which in here is ReexportedOtherClass.
       otherClass: OtherClass,
       anotherClass: ReexportedOtherClass,
       anotherType: AnotherType[],

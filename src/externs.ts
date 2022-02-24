@@ -633,13 +633,15 @@ export function generateExterns(
     // Only report diagnostics for .d.ts files. Diagnostics for .ts files have
     // already been reported during JS emit.
     const importDiagnostics = isDts ? diagnostics : [];
-    let symbol = typeChecker.getSymbolAtLocation(node);
-    if (!symbol) {
+    const localSymbol = typeChecker.getSymbolAtLocation(node);
+    if (!localSymbol) {
       reportDiagnostic(importDiagnostics, node, `named import has no symbol`);
       return;
     }
-    if (symbol.flags & ts.SymbolFlags.Alias) {
-      symbol = typeChecker.getAliasedSymbol(symbol);
+
+    let symbol = localSymbol;
+    if (localSymbol.flags & ts.SymbolFlags.Alias) {
+      symbol = typeChecker.getAliasedSymbol(localSymbol);
     }
 
     const moduleSymbol = typeChecker.getSymbolAtLocation(moduleUri);
@@ -688,6 +690,9 @@ export function generateExterns(
       }
     }
 
+    // Add both an alias for the local symbol and for the global symbol. The
+    // global symbol can appear in locations where the type was inferred.
+    mtt.symbolsToAliasedNames.set(localSymbol, aliasName);
     mtt.symbolsToAliasedNames.set(symbol, aliasName);
   }
 

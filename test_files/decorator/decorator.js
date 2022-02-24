@@ -68,14 +68,18 @@ class DecoratorTest {
      * @param {!tsickle_external_2.AType} aType
      * @param {!tsickle_default_export_1.default} defaultImport
      * @param {!Map<string, number>} localTypeAlias
-     * @param {!tsickle_external2_3.OtherClass} otherClass
-     * @param {!tsickle_external2_3.OtherClass} anotherClass
+     * @param {!tsickle_external_2.ReexportedOtherClass} otherClass
+     * @param {!tsickle_external_2.ReexportedOtherClass} anotherClass
      * @param {!Array<!tsickle_only_types_4.AnotherType>} anotherType
      * @param {!tsickle_only_types_4.AnotherType} anotherPrefixed
      * @param {function(!tsickle_external_2.AType): string} fnUsingAType
      * @param {{constructor: function(string): void}=} valueWithCtorSignature
      */
-    constructor(a, anyDecorated, n, b, promise, arr, aClass, AClass, aRenamedClass, aClassWithGenerics, aType, defaultImport, localTypeAlias, otherClass, anotherClass, anotherType, anotherPrefixed, fnUsingAType, valueWithCtorSignature = { /**
+    constructor(a, anyDecorated, n, b, promise, arr, aClass, AClass, aRenamedClass, aClassWithGenerics, aType, defaultImport, localTypeAlias, 
+    // Note: this gets emitted as "ReexportedOtherClass" because TypeScript
+    // uses the first symbol in the local scope that aliases the final symbol,
+    // which in here is ReexportedOtherClass.
+    otherClass, anotherClass, anotherType, anotherPrefixed, fnUsingAType, valueWithCtorSignature = { /**
          * @public
          * @param {string} x
          * @return {void}
