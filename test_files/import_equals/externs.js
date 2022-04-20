@@ -10,6 +10,21 @@ var test_files$import_equals$exporter = {};
 test_files$import_equals$exporter.exportedSymbol = {};
 /** @type {number} */
 test_files$import_equals$exporter.exportedSymbol.valueInNamespace;
+/**
+ * @constructor
+ * @struct
+ */
+test_files$import_equals$exporter.Exported = function() {};
+/**
+ * @constructor
+ * @struct
+ */
+test_files$import_equals$exporter.Exported.Nested = function() {};
+
+/** @enum {number} */
+test_files$import_equals$exporter.Exported.Nested.Thing = {
+  ITEM: 1,
+};
 // Generated from: test_files/import_equals/import_equals_global.d.ts
 /** @const */
 var __React = {};
@@ -36,7 +51,7 @@ test_files$import_equals$import_equals_module_.namespaceInModule = {};
  * @struct
  */
 test_files$import_equals$import_equals_module_.namespaceInModule.InNamespace = function() {};
-/** @type {!test_files$import_equals$import_equals_module.alias.InNamespace} */
+/** @type {!test_files$import_equals$import_equals_module.namespaceInModule.InNamespace} */
 test_files$import_equals$import_equals_module_.namespaceInModule.myVar;
 /** @const */
 var globalNamespaceInModule = {};

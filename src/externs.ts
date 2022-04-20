@@ -69,7 +69,7 @@ import * as ts from 'typescript';
 
 import {AnnotatorHost, moduleNameAsIdentifier} from './annotator_host';
 import {getEnumType} from './enum_transformer';
-import {extractModuleMarker, namespaceForImportUrl, resolveModuleName} from './googmodule';
+import {namespaceForImportUrl, resolveModuleName} from './googmodule';
 import * as jsdoc from './jsdoc';
 import {escapeForComment, maybeAddHeritageClauses, maybeAddTemplateClause} from './jsdoc_transformer';
 import {ModuleTypeTranslator} from './module_type_translator';
@@ -580,6 +580,9 @@ export function generateExterns(
    * referencing the type.
    */
   function addImportAliases(decl: ts.ImportDeclaration|ts.ImportEqualsDeclaration) {
+    // Side effect import, like "import 'somepath';" declares no local aliases.
+    if (ts.isImportDeclaration(decl) && !decl.importClause) return;
+
     let moduleUri: ts.StringLiteral;
     if (ts.isImportDeclaration(decl)) {
       moduleUri = decl.moduleSpecifier as ts.StringLiteral;
@@ -592,55 +595,9 @@ export function generateExterns(
       return;
     }
 
-    if (ts.isImportEqualsDeclaration(decl)) {
-      // import foo = require('./bar');
-      addImportAlias(decl.name, moduleUri, undefined);
-      return;
-    }
-
-    // Side effect import, like "import 'somepath';" declares no local aliases.
-    if (!decl.importClause) return;
-
-    if (decl.importClause.name) {
-      // import name from ... -> map to .default on the module.name.
-      addImportAlias(decl.importClause.name, moduleUri, 'default');
-    }
-    const namedBindings = decl.importClause.namedBindings;
-    if (!namedBindings) return;
-
-    if (ts.isNamespaceImport(namedBindings)) {
-      // import * as name -> map directly to the module.name.
-      addImportAlias(namedBindings.name, moduleUri, undefined);
-    }
-
-    if (ts.isNamedImports(namedBindings)) {
-      // import {A as B}, map to module.name.A
-      for (const namedBinding of namedBindings.elements) {
-        addImportAlias(
-            namedBinding.name, moduleUri,
-            namedBinding.propertyName ?? namedBinding.name);
-      }
-    }
-  }
-
-  /**
-   * Adds an import alias for the symbol defined at the given node. Creates an alias name based on
-   * the given moduleName and (optionally) the name.
-   */
-  function addImportAlias(
-      node: ts.Node, moduleUri: ts.StringLiteral,
-      name: ts.Identifier|string|undefined) {
     // Only report diagnostics for .d.ts files. Diagnostics for .ts files have
     // already been reported during JS emit.
     const importDiagnostics = isDts ? diagnostics : [];
-    let symbol = typeChecker.getSymbolAtLocation(node);
-    if (!symbol) {
-      reportDiagnostic(importDiagnostics, node, `named import has no symbol`);
-      return;
-    }
-    if (symbol.flags & ts.SymbolFlags.Alias) {
-      symbol = typeChecker.getAliasedSymbol(symbol);
-    }
 
     const moduleSymbol = typeChecker.getSymbolAtLocation(moduleUri);
     if (!moduleSymbol) {
@@ -648,47 +605,34 @@ export function generateExterns(
           importDiagnostics, moduleUri, `imported module has no symbol`);
       return;
     }
+
     const googNamespace = namespaceForImportUrl(
         moduleUri, importDiagnostics, moduleUri.text, moduleSymbol);
-
-    let nameStr: string|undefined;
-    if (typeof name === 'string') {
-      nameStr = name;
-    } else if (name) {
-      nameStr = getIdentifierText(name);
-    }
-
-    let aliasName: string;
-    if (googNamespace) {
-      aliasName = googNamespace;
-      const isDefaultImport = name === 'default' ||
-          !!extractModuleMarker(moduleSymbol, '__clutz_strip_property');
-      if (!isDefaultImport && nameStr) {
-        aliasName += '.' + nameStr;
-      }
-    } else {
-      // While type_translator does add the mangled prefix for ambient declarations, it only does so
-      // for non-aliased (i.e. not imported) symbols. That's correct for its use in regular modules,
-      // which will have a local symbol for the imported ambient symbol. However within an externs
-      // file, there are no imports, so we need to make sure the alias already contains the correct
-      // module name, which means the mangled module name in case of imports symbols.
-      // This only applies to non-Closure ('goog:') imports.
-      const isAmbientModuleDeclaration =
-          symbol.declarations && symbol.declarations.some(d => isAmbient(d));
-      const fullUri =
-          resolveModuleName(host, sourceFile.fileName, moduleUri.text);
-      if (isAmbientModuleDeclaration) {
-        aliasName = moduleNameAsIdentifier(host, fullUri);
-      } else {
-        aliasName = host.pathToModuleName(
-            sourceFile.fileName, resolveModuleName(host, sourceFile.fileName, fullUri));
-      }
-      if (nameStr) {
-        aliasName += '.' + nameStr;
-      }
-    }
-
-    mtt.symbolsToAliasedNames.set(symbol, aliasName);
+    const isDefaultImport =
+        ts.isImportDeclaration(decl) && !!decl.importClause?.name;
+    mtt.registerImportAliases(
+        googNamespace, isDefaultImport, moduleSymbol,
+        googNamespace ? () => googNamespace : (symbol) => {
+          // While type_translator does add the mangled prefix for ambient
+          // declarations, it only does so for non-aliased (i.e. not imported)
+          // symbols. That's correct for its use in regular modules, which will
+          // have a local symbol for the imported ambient symbol. However within
+          // an externs file, there are no imports, so we need to make sure the
+          // alias already contains the correct module name, which means the
+          // mangled module name in case of imports symbols. This only applies
+          // to non-Closure ('goog:') imports.
+          const isAmbientModuleDeclaration = symbol.declarations &&
+              symbol.declarations.some(d => isAmbient(d));
+          const fullUri =
+              resolveModuleName(host, sourceFile.fileName, moduleUri.text);
+          if (isAmbientModuleDeclaration) {
+            return moduleNameAsIdentifier(host, fullUri);
+          } else {
+            return host.pathToModuleName(
+                sourceFile.fileName,
+                resolveModuleName(host, sourceFile.fileName, fullUri));
+          }
+        });
   }
 
   /**
